@@ -5,7 +5,7 @@ const express=require("express");
 const app=express();
 const mongoose=require("mongoose");
 
-const mongo_url="mongodb://127.0.0.1:27017/wanderlust";
+const mongo_url=process.env.MONGO_URL ||"mongodb://127.0.0.1:27017/wanderlust";
 const path=require("path");
 const methodOverride=require("method-override");
 const ejsmate=require("ejs-mate");
@@ -28,9 +28,9 @@ const store=MongoStore.create({
     touchAfter:24*3600,
 })
 
-store.on("error",()=>{
-    console.log("Error in MONGO SESSION STORE",err);
-})
+store.on("error", (err) => {
+    console.log("Error in MONGO SESSION STORE", err);
+});
 
 const sessionOptions={
     store:store,
@@ -55,12 +55,12 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
   
-app.use((req,res,next)=>{
-    res.locals.success=req.flash("success");
-    res.locals.error=req.flash("error");   
-    res.locals.currUser=req.user;
+app.use((req, res, next) => {
+    res.locals.success = req.flash("success");
+    res.locals.error = req.flash("error");
+    res.locals.currUser = req.user || null;
     next();
-})
+});
 
 main().then(()=>{
     console.log("Connected to DB"); 
@@ -79,15 +79,22 @@ app.use(express.urlencoded({extended:true}));
 app.use(express.json());
 app.use(methodOverride("_method"));
 app.use(express.static(path.join(__dirname,"/public")));
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        status: "OK",
+        application: "Wanderlust"
+    });
+});
 
-
-
+app.get("/", (req, res) => {
+    res.redirect("/listings");
+});
 app.use("/listings",listingsRouter);
 app.use("/listings/:id/reviews",reviewsRouter);
 app.use("/",userRouter);
 
 app.use((req, res, next) => {
-    res.status(404).render("404"); // or "errors/404" depending on your structure
+    res.status(404).render("404");
 });
 app.use((err,req,res,next)=>{
     let{status=500,message="Something went Wrong!"}=err;
