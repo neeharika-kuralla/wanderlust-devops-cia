@@ -1,199 +1,210 @@
-const Listing=require("../models/listing");
 
-module.exports.index=async(req,res)=>{
-    // const allListings=await Listing.find({});
-    // res.render("listings/index.ejs",{allListings});
+const Listing = require("../models/listing");
+
+// Index route
+module.exports.index = async (req, res) => {
     const { q } = req.query;
     let allListings;
-    if (q) {
-        const regex = new RegExp(escapeRegex(q), 'i'); // case-insensitive match
+
+    if (q && q.trim()) {
+        const regex = new RegExp(escapeRegex(q.trim()), "i");
+
         allListings = await Listing.find({
             $or: [
                 { title: regex },
                 { location: regex },
                 { category: regex },
-                { country: regex },
+                { country: regex }
             ]
         });
+
         if (allListings.length === 0) {
             req.flash("error", "No results found for your search.");
             return res.redirect("/listings");
         }
     } else {
-        req.flash("error", "No such place exists.");
         allListings = await Listing.find({});
     }
 
     res.render("listings/index", { allListings, q });
 };
 
-// Helper to escape special regex characters in user input
+// Helper function to escape special regex characters
 function escapeRegex(text) {
-    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// New listing form
 module.exports.renderNewForm = (req, res) => {
-    const categories = ["Trending", "Rooms", "Iconic Cities", "Mountains", "Castles", "Amazing Pools", "Camping", "Artic"];
-    res.render("listings/new.ejs", { category: categories, listing: {} });
-};
-module.exports.showListing=async(req,res)=>{
-    let {id}=req.params;
-    const listing=await Listing.findById(id).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!listing){
-        req.flash("error","Listing you requested for does not exist!");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(listing); 
-        res.render("listings/show.ejs",{listing});
-    }
-};
-module.exports.createListings=async(req,res,next)=>{
+    const categories = [
+        "Trending",
+        "Rooms",
+        "Iconic Cities",
+        "Mountains",
+        "Castles",
+        "Amazing Pools",
+        "Camping",
+        "Artic"
+    ];
 
-    let url=req.file.path;
-    let filename=req.file.filename;
-    const newlisting=new Listing(req.body.listing);
-    newlisting.owner=req.user._id; 
-    newlisting.image={url,filename};
+    res.render("listings/new.ejs", {
+        category: categories,
+        listing: {}
+    });
+};
+
+// Show listing
+module.exports.showListing = async (req, res) => {
+    const { id } = req.params;
+
+    const listing = await Listing.findById(id)
+        .populate({
+            path: "reviews",
+            populate: { path: "author" }
+        })
+        .populate("owner");
+
+    if (!listing) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
+    }
+
+    res.render("listings/show.ejs", { listing });
+};
+
+// Create listing
+module.exports.createListings = async (req, res) => {
+    const url = req.file.path;
+    const filename = req.file.filename;
+
+    const newlisting = new Listing(req.body.listing);
+
+    newlisting.owner = req.user._id;
+    newlisting.image = { url, filename };
+
     await newlisting.save();
-    req.flash("success","New Listing Created!");
-    res.redirect("/listings");
+
+    req.flash("success", "New Listing Created!");
+    return res.redirect("/listings");
 };
 
-module.exports.renderEditForm=async(req,res)=>{
-    let {id}=req.params;
-    const listing=await Listing.findById(id);
-    if(!listing){
-        req.flash("error","Listing you requested for does not exist!");    
-        res.redirect("/listings");
+// Edit listing form
+module.exports.renderEditForm = async (req, res) => {
+    const { id } = req.params;
+
+    const listing = await Listing.findById(id);
+
+    if (!listing) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
     }
-    else{
-        let original=listing.image.url;
-        original=original.replace("/upload","/upload/w_150");
-        let category=await Listing.schema.path("category").enumValues;
-        res.render("listings/edit.ejs",{listing,original,cate});
-    } 
-    
+
+    let original = listing.image.url;
+    original = original.replace("/upload", "/upload/w_150");
+
+    const category = await Listing.schema.path("category").enumValues;
+
+    res.render("listings/edit.ejs", {
+        listing,
+        original,
+        category
+    });
 };
 
+// Update listing
+module.exports.updateListings = async (req, res) => {
+    const { id } = req.params;
 
+    const listing = await Listing.findByIdAndUpdate(
+        id,
+        { ...req.body.listing }
+    );
 
-module.exports.updateListings=async(req,res)=>{
-    let {id}=req.params;
-    let listing=await Listing.findByIdAndUpdate(id,{...req.body.listing});
-    if(typeof req.file!=="undefined"){
-    let url=req.file.path;
-    let filename=req.file.filename;
-    listing.image={url,filename};
-    await listing.save();
+    if (!listing) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
     }
-    req.flash("success","Listing Updated!");
-    res.redirect(`/listings/${id}`);
+
+    if (req.file) {
+        const url = req.file.path;
+        const filename = req.file.filename;
+
+        listing.image = { url, filename };
+        await listing.save();
+    }
+
+    req.flash("success", "Listing Updated!");
+    return res.redirect(`/listings/${id}`);
 };
 
-module.exports.deleteListing=async(req,res)=>{
-    let {id}=req.params;
-    let deletedlisting=await Listing.findByIdAndDelete(id);
-    console.log(deletedlisting);
-    req.flash("success","Listing Deleted!");
-    res.redirect("/listings");
+// Delete listing
+module.exports.deleteListing = async (req, res) => {
+    const { id } = req.params;
+
+    const deletedlisting = await Listing.findByIdAndDelete(id);
+
+    if (!deletedlisting) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
+    }
+
+    req.flash("success", "Listing Deleted!");
+    return res.redirect("/listings");
 };
 
-module.exports.trendingFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Trending"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Trending Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Helper function for category filters
+async function filterListings(req, res, category, errorMessage) {
+    const allListings = await Listing.find({ category })
+        .populate({
+            path: "reviews",
+            populate: { path: "author" }
+        })
+        .populate("owner");
 
+    if (allListings.length === 0) {
+        req.flash("error", errorMessage);
+        return res.redirect("/listings");
+    }
+
+    return res.render("listings/index.ejs", { allListings });
 }
 
-module.exports.roomFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Rooms"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Rooms Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Trending category
+module.exports.trendingFilter = async (req, res) => {
+    return filterListings(req, res, "Trending", "No Listings in Trending Category");
+};
 
-}
+// Rooms category
+module.exports.roomFilter = async (req, res) => {
+    return filterListings(req, res, "Rooms", "No Listings in Rooms Category");
+};
 
-module.exports.citiesFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Iconic Cities"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Iconic Cities Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Iconic cities category
+module.exports.citiesFilter = async (req, res) => {
+    return filterListings(req, res, "Iconic Cities", "No Listings in Iconic Cities Category");
+};
 
-}
-module.exports.mountainFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Mountains"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Mountains Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Mountains category
+module.exports.mountainFilter = async (req, res) => {
+    return filterListings(req, res, "Mountains", "No Listings in Mountains Category");
+};
 
-}
-module.exports.castlesFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Castles"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Castles Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Castles category
+module.exports.castlesFilter = async (req, res) => {
+    return filterListings(req, res, "Castles", "No Listings in Castles Category");
+};
 
-}
-module.exports.poolsFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Amazing Pools"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Amazing Pools Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Amazing pools category
+module.exports.poolsFilter = async (req, res) => {
+    return filterListings(req, res, "Amazing Pools", "No Listings in Amazing Pools Category");
+};
 
-}
-module.exports.campingFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Camping"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Camping Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
+// Camping category
+module.exports.campingFilter = async (req, res) => {
+    return filterListings(req, res, "Camping", "No Listings in Camping Category");
+};
 
-}
-module.exports.articFilter=async(req,res)=>{
-    let allListings=await Listing.find({category:"Artic"}).populate({path:"reviews",populate:{path:"author"}}).populate("owner");
-    if(!allListings){
-        req.flash("error","No Listings in Artic Category");    
-        res.redirect("/listings");
-    }
-    else{
-        console.log(allListings); 
-        res.render("listings/index.ejs", {allListings});
-    };
-
-}
+// Arctic category
+module.exports.articFilter = async (req, res) => {
+    return filterListings(req, res, "Artic", "No Listings in Artic Category");
+};

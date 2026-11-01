@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wanderlust
+  namespace: wanderlust
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wanderlust
+  template:
+    metadata:
+      labels:
+        app: wanderlust
+    spec:
+      containers:
+        - name: wanderlust
+          image: asia-south1-docker.pkg.dev/wanderlust-devops-cia2/wanderlust-repo/wanderlust:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wanderlust-secrets
+                  key: MONGO_URL
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: wanderlust-app-secret
+                  key: SECRET
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
