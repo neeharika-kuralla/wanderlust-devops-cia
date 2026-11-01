@@ -23,7 +23,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 
-                bat 'docker build -t kneeharika27/wanderlust-devops-cia2:1.0 .'
+                bat 'docker build -t kneeharika27/wanderlust-devops-cia2:1.2 .'
             }
         }
         
@@ -35,7 +35,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-                    bat 'docker push kneeharika27/wanderlust-devops-cia2:1.0'
+                    bat 'docker push kneeharika27/wanderlust-devops-cia2:1.2'
                 }
             }
         }
