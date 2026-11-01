@@ -23,7 +23,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 
-                bat 'docker build -t kneeharika27/wanderlust-devops-cia2:1.2 .'
+                bat 'docker build --load -t kneeharika27/wanderlust-devops-cia2:1.2 .'
             }
         }
         
