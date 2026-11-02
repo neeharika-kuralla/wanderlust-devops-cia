@@ -8,6 +8,11 @@ pipeline {
                 checkout scm
             }
         }
+        stage('Secret Scanning - Gitleaks') {
+            steps {
+                bat '"C:\\Users\\neeha\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gitleaks.Gitleaks_Microsoft.Winget.Source_8wekyb3d8bbwe\\gitleaks.exe" git . --redact'
+            }
+        }
 
         stage('Install Dependencies') {
             steps {

@@ -1,0 +1,5 @@
+[allowlist]
+description = "Ignore the public GCP project ID in deployment commands"
+regexes = [
+    '''wanderlust-devops-cia2'''
+]
