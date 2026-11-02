@@ -5,6 +5,7 @@ pipeline {
     environment {
         IMAGE_TAG = "build-${BUILD_NUMBER}"
     }
+
     stages {
         stage('Checkout Source') {
             steps {
@@ -37,8 +38,13 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-                    bat 'docker push kneeharika27/wanderlust-devops-cia2:%IMAGE_TAG%'
+                    bat '''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    if errorlevel 1 exit /b 1
+
+                    docker push kneeharika27/wanderlust-devops-cia2:%IMAGE_TAG%
+                    if errorlevel 1 exit /b 1
+                    '''
                 }
             }
         }
@@ -53,10 +59,13 @@ pipeline {
                     set "DOCKER_CONFIG=%WORKSPACE%\\.docker-auth"
 
                     docker login -u _json_key --password-stdin https://asia-south1-docker.pkg.dev < "%GCP_KEY%"
+                    if errorlevel 1 exit /b 1
 
                     docker tag kneeharika27/wanderlust-devops-cia2:%IMAGE_TAG% asia-south1-docker.pkg.dev/wanderlust-devops-cia2/wanderlust-repo/wanderlust:%IMAGE_TAG%
+                    if errorlevel 1 exit /b 1
 
                     docker push asia-south1-docker.pkg.dev/wanderlust-devops-cia2/wanderlust-repo/wanderlust:%IMAGE_TAG%
+                    if errorlevel 1 exit /b 1
 
                     docker logout https://asia-south1-docker.pkg.dev
 
@@ -65,6 +74,7 @@ pipeline {
                 }
             }
         }
+
         stage('Deploy to GKE') {
             steps {
                 withCredentials([file(
@@ -81,19 +91,14 @@ pipeline {
             }
         }
     }
-            
 
     post {
-        always {
-            bat 'if exist gcp-token.txt del /q gcp-token.txt'
-        }
-
         success {
-            echo 'Build, tests and image publishing completed successfully!'
+            echo 'SUCCESS: Build, tests, Docker Hub push, Artifact Registry publishing and GKE deployment completed!'
         }
 
         failure {
-            echo 'Pipeline failed. Check the stage logs.'
+            echo 'FAILURE: Pipeline failed. Check the console output for the failed stage.'
         }
     }
 }
