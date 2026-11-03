@@ -68,6 +68,29 @@ pipeline {
             }
         }
 
+        
+        stage('Deploy with Ansible - Docker') {
+            steps {
+                withCredentials([file(
+                    credentialsId: 'wanderlust-env',
+                    variable: 'WANDERLUST_ENV'
+                )]) {
+                    bat '''
+                    docker build -t wanderlust-ansible:1.0 ansible
+
+                    docker run --rm ^
+                      -v /var/run/docker.sock:/var/run/docker.sock ^
+                      -v "%WORKSPACE%/ansible:/ansible" ^
+                      -v "%WANDERLUST_ENV%:/ansible/.env:ro" ^
+                      -w /ansible ^
+                      wanderlust-ansible:1.0 ^
+                      ansible-playbook -i inventory.ini deploy.yml
+                    '''
+                }
+            }
+        }
+
+
         stage('Deploy to GKE') {
             steps {
                 withCredentials([file(

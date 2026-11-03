@@ -1,0 +1,17 @@
+
+---
+- name: Deploy Wanderlust using Ansible and Docker
+  hosts: docker_host
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Start Wanderlust application container
+      community.docker.docker_container:
+        name: wanderlust-ansible-app
+        image: asia-south1-docker.pkg.dev/wanderlust-devops-cia2/wanderlust-repo/wanderlust:1.2
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "3002:3000"
+        env_file: /ansible/.env
