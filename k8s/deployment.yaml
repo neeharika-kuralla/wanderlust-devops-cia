@@ -19,6 +19,13 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
+
+          # ConfigMap
+          envFrom:
+            - configMapRef:
+                name: wanderlust-config
+
+          # Existing Secrets
           env:
             - name: MONGO_URL
               valueFrom:
@@ -30,6 +37,7 @@ spec:
                 secretKeyRef:
                   name: wanderlust-app-secret
                   key: SECRET
+
           readinessProbe:
             httpGet:
               path: /health
